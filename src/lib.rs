@@ -11,7 +11,7 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn build(nn_arch: &Array1<u64>) -> Result<Network, &'static str> {
+    pub fn new(nn_arch: &Array1<u64>) -> Result<Network, &'static str> {
         let n = nn_arch.len();
 
         let mut biases: Vec<Array2<f64>> = Vec::new();
@@ -28,15 +28,15 @@ impl Network {
             Network {
                 architecture: nn_arch.clone(),
                 num_layers: n,
-                biases: biases,
-                weights: weights
+                biases,
+                weights,
             }
         )
     }
 
     pub fn feedforward(&self, a: &Array2<f64>) -> Array2<f64> {
         let mut activation = a.clone(); 
-        for (b, w) in (self.biases).iter().zip((self.weights).iter()) {
+        for (b, w) in self.biases.iter().zip(self.weights.iter()) {
             let z = w.dot(&activation) + b;
             activation = sigmoid(&z);
         }
@@ -45,12 +45,12 @@ impl Network {
 
     pub fn backprop(&self, x: &Array2<f64>, y: &Array2<f64>) -> (Vec<Array2<f64>>, Vec<Array2<f64>>) {
         let mut nabla_b: Vec<Array2<f64>> = Vec::new();
-        for b in &self.biases {
+        for b in self.biases.iter() {
             nabla_b.push(Array2::<f64>::zeros(b.dim()));
         }
 
         let mut nabla_w: Vec<Array2<f64>> = Vec::new();
-        for w in &self.weights {
+        for w in self.weights.iter() {
             nabla_w.push(Array2::<f64>::zeros(w.dim()));
         }
 
@@ -59,7 +59,7 @@ impl Network {
 
         let mut zs: Vec<Array2<f64>> = Vec::new();      
 
-        for (b, w) in (&self.biases).iter().zip((&self.weights).iter()) {
+        for (b, w) in self.biases.iter().zip(self.weights.iter()) {
             let z = w.dot(&activation) + b;
             activation = sigmoid(&z);
             zs.push(z);
@@ -78,7 +78,7 @@ impl Network {
             let z = &zs[zs.len() - l];
             let sp = sigmoid_prime(&z);
 
-            delta = (&self.weights)[(&self.weights).len() - l + 1].t().dot(&delta) * &sp;
+            delta = self.weights[self.weights.len() - l + 1].t().dot(&delta) * &sp;
 
             let nb_len = nabla_b.len();
             let nw_len = nabla_w.len();
@@ -92,12 +92,12 @@ impl Network {
 
     pub fn update_mini_batch(&mut self, mini_batch: &[(Array2<f64>, Array2<f64>)], eta: f64) {
         let mut nabla_b: Vec<Array2<f64>> = Vec::new();
-        for b in &self.biases {
+        for b in self.biases.iter() {
             nabla_b.push(Array2::<f64>::zeros(b.dim()));
         }
 
         let mut nabla_w: Vec<Array2<f64>> = Vec::new();
-        for w in &self.weights {
+        for w in self.weights.iter() {
             nabla_w.push(Array2::<f64>::zeros(w.dim()));
         }
         
@@ -113,12 +113,12 @@ impl Network {
             }
         }
 
-        for (w, nw) in (self.weights).iter_mut().zip(nabla_w.iter()) {
+        for (w, nw) in self.weights.iter_mut().zip(nabla_w.iter()) {
             let scale = eta / mini_batch.len() as f64;
             *w = &*w - &(nw*scale);
         }
 
-        for (b, nb) in (self.biases).iter_mut().zip(nabla_b.iter()) {
+        for (b, nb) in self.biases.iter_mut().zip(nabla_b.iter()) {
             let scale = eta / mini_batch.len() as f64;
             *b = &*b - &(nb*scale);
         }
@@ -127,11 +127,11 @@ impl Network {
 
     pub fn sgd(
         &mut self, 
-        mut training_data: Vec<(Array2<f64>, Array2<f64>)>, 
+        training_data: &mut [(Array2<f64>, Array2<f64>)], 
         epochs: usize, 
         mini_batch_size: usize, 
         eta: f64,
-        test_data: Vec<(Array2<f64>, Array2<f64>)>,
+        test_data: &[(Array2<f64>, Array2<f64>)],
     ) {
 
         let n = training_data.len();
@@ -147,7 +147,7 @@ impl Network {
         }
     }
 
-    pub fn evaluate(&self, test_data: &Vec<(Array2<f64>, Array2<f64>)>) -> usize {
+    pub fn evaluate(&self, test_data: &[(Array2<f64>, Array2<f64>)]) -> usize {
         test_data.iter()
             .filter(|(x, y)| {
                 argmax(&self.feedforward(x)) == argmax(y)
