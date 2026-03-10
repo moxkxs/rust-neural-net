@@ -38,7 +38,7 @@ impl NaiveNeuralNetwork {
     ) -> Result<NaiveNeuralNetwork, &'static str> {
         let n = nn_arch.len();
 
-        let mut biases: Vec<Array2<f64>> = nn_arch
+        let biases: Vec<Array2<f64>> = nn_arch
             .iter()
             .skip(1)
             .map(|l| {
@@ -49,7 +49,7 @@ impl NaiveNeuralNetwork {
             })
             .collect();
 
-        let mut weights: Vec<Array2<f64>> = match weight_initialization {
+        let weights: Vec<Array2<f64>> = match weight_initialization {
             WeightInitialization::Random => nn_arch
                 .iter()
                 .zip(nn_arch.iter().skip(1))
@@ -87,10 +87,13 @@ impl NaiveNeuralNetwork {
     pub fn feedforward(&self, a: &Array2<f64>) -> Array2<f64> {
         let mut activation = a.clone();
 
-        self.biases.iter().zip(self.weights.iter()).map(|(b, w)| {
-            let z = w.dot(&activation) + b;
-            activation = sigmoid(&z)
-        });
+        self.biases
+            .iter()
+            .zip(self.weights.iter())
+            .for_each(|(b, w)| {
+                let z = w.dot(&activation) + b;
+                activation = sigmoid(&z)
+            });
 
         activation
     }
@@ -116,12 +119,15 @@ impl NaiveNeuralNetwork {
 
         let mut zs: Vec<Array2<f64>> = Vec::new();
 
-        self.biases.iter().zip(self.weights.iter()).map(|(b, w)| {
-            let z = w.dot(&activation) + b;
-            activation = sigmoid(&z);
-            zs.push(z);
-            activations.push(activation.clone());
-        });
+        self.biases
+            .iter()
+            .zip(self.weights.iter())
+            .for_each(|(b, w)| {
+                let z = w.dot(&activation) + b;
+                activation = sigmoid(&z);
+                zs.push(z);
+                activations.push(activation.clone());
+            });
 
         let mut delta = match self.cost_func {
             CostFunction::Quadratic => {
@@ -143,8 +149,6 @@ impl NaiveNeuralNetwork {
 
             delta = self.weights[self.weights.len() - l + 1].t().dot(&delta) * &sp;
 
-            let nb_len = nabla_b.len();
-            let nw_len = nabla_w.len();
             nabla_w[nw_len - l] = delta.dot(&activations[activations.len() - l - 1].t());
             nabla_b[nb_len - l] = delta.clone();
         }
@@ -158,19 +162,20 @@ impl NaiveNeuralNetwork {
         eta: f64,
         lmbda: f64,
         n: usize,
-    ) -> () {
-        let mut nabla_b: Vec<Array2<f64>> = Vec::new();
-        for b in self.biases.iter() {
-            nabla_b.push(Array2::<f64>::zeros(b.dim()));
-        }
-
-        let mut nabla_w: Vec<Array2<f64>> = Vec::new();
-        for w in self.weights.iter() {
-            nabla_w.push(Array2::<f64>::zeros(w.dim()));
-        }
+    ){
+        let mut nabla_b: Vec<Array2<f64>> = self
+            .biases
+            .iter()
+            .map(|b| Array2::<f64>::zeros(b.dim()))
+            .collect();
+        let mut nabla_w: Vec<Array2<f64>> = self
+            .weights
+            .iter()
+            .map(|w| Array2::<f64>::zeros(w.dim()))
+            .collect();
 
         for (x, y) in mini_batch.iter() {
-            let (delta_nabla_b, delta_nabla_w) = self.backprop(&x, &y);
+            let (delta_nabla_b, delta_nabla_w) = self.backprop(x, y);
 
             for (nb, dnb) in nabla_b.iter_mut().zip(delta_nabla_b.iter()) {
                 *nb += dnb;
@@ -181,8 +186,8 @@ impl NaiveNeuralNetwork {
             }
         }
 
+        let scale = eta / mini_batch.len() as f64;
         for (w, nw) in self.weights.iter_mut().zip(nabla_w.iter()) {
-            let scale = eta / mini_batch.len() as f64;
             match self.regularization {
                 Some(Regularization::L1) => {
                     *w = &*w - &(w.mapv(|x| x.signum()) * (eta * lmbda / n as f64)) - &(nw * scale);
@@ -211,7 +216,7 @@ impl NaiveNeuralNetwork {
         eta: f64,
         lmbda: f64,
         test_data: &[(Array2<f64>, Array2<f64>)],
-    ) -> () {
+    ){
         let n = training_data.len();
         let n_test = test_data.len();
 
@@ -221,7 +226,7 @@ impl NaiveNeuralNetwork {
                 let mini_batch = &training_data[k..k + mini_batch_size];
                 self.update_mini_batch(mini_batch, eta, lmbda, n);
             }
-            println!("Epoch {i}: {} / {}", &self.evaluate(&test_data), n_test);
+            println!("Epoch {i}: {} / {}", self.evaluate(test_data), n_test);
         }
     }
 
