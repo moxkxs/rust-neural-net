@@ -3,15 +3,21 @@ use ndarray_rand::*;
 use ndarray_rand::rand::seq::SliceRandom;
 use ndarray_rand::rand::rng;
 
-pub struct Network {
+pub enum CostFunction {
+    Quadratic,
+    CrossEntropy,
+}
+
+pub struct NaiveNeuralNetwork {
     pub architecture: Array1<u64>,
     pub num_layers: usize,
     pub biases: Vec<Array2<f64>>,
     pub weights: Vec<Array2<f64>>,
+    pub cost_func: CostFunction,
 }
 
-impl Network {
-    pub fn new(nn_arch: &Array1<u64>) -> Result<Network, &'static str> {
+impl NaiveNeuralNetwork {
+    pub fn new(nn_arch: &Array1<u64>, cost_func: CostFunction) -> Result<NaiveNeuralNetwork, &'static str> {
         let n = nn_arch.len();
 
         let mut biases: Vec<Array2<f64>> = Vec::new();
@@ -25,11 +31,12 @@ impl Network {
         }
         
         Ok(
-            Network {
+            NaiveNeuralNetwork {
                 architecture: nn_arch.clone(),
                 num_layers: n,
                 biases,
                 weights,
+                cost_func,
             }
         )
     }
@@ -66,8 +73,10 @@ impl Network {
             activations.push(activation.clone());
         }
 
-        //let mut delta = quadratic_cost_derivative(&activations[activations.len() - 1], y) * sigmoid_prime(&zs[zs.len() - 1]);
-        let mut delta = &activations[activations.len() - 1] - y;
+        let mut delta = match self.cost_func {
+            CostFunction::Quadratic => quadratic_cost_derivative(&activations[activations.len() - 1], y) * sigmoid_prime(&zs[zs.len() - 1]),
+            CostFunction::CrossEntropy => &activations[activations.len() - 1] - y,
+        };
         
         let nb_len = nabla_b.len();
         let nw_len = nabla_w.len();

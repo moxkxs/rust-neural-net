@@ -1,5 +1,5 @@
 use ndarray::{Array1, Array2};
-use rust_nn::naive::NaiveNeuralNetwork;
+use rust_nn::naive::{NaiveNeuralNetwork, CostFunction};
 use mnist::MnistBuilder;
 
 fn main() {
@@ -14,7 +14,7 @@ fn main() {
     let test_data = to_dataset(&mnist.tst_img, &mnist.tst_lbl, 10_000, true);
 
     let arch = Array1::from_vec(vec![784u64, 30, 30, 10]);
-    let mut net = Network::new(&arch).expect("Failed to build Network");
+    let mut net = NaiveNeuralNetwork::new(&arch, CostFunction::CrossEntropy).expect("Failed to build Network");
 
     net.sgd(&mut training_data, 30, 10, 0.5, 5.0, &test_data);
 }
