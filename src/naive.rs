@@ -2,6 +2,7 @@ use ndarray::{Array1, Array2, Array};
 use ndarray_rand::*;
 use ndarray_rand::rand::seq::SliceRandom;
 use ndarray_rand::rand::rng;
+use crate::shared::*;
 
 pub enum CostFunction {
     Quadratic,
@@ -34,8 +35,8 @@ impl NaiveNeuralNetwork {
         cost_func: CostFunction, 
         regularization: Option<Regularization>,
         weight_initialization: WeightInitialization
-        ) -> Result<NaiveNeuralNetwork, &'static str> 
-    {
+    ) -> Result<NaiveNeuralNetwork, &'static str> {
+
         let n = nn_arch.len();
 
         let mut biases: Vec<Array2<f64>> = Vec::new();
@@ -80,7 +81,11 @@ impl NaiveNeuralNetwork {
         activation
     }
 
-    pub fn backprop(&self, x: &Array2<f64>, y: &Array2<f64>) -> (Vec<Array2<f64>>, Vec<Array2<f64>>) {
+    pub fn backprop(
+        &self, 
+        x: &Array2<f64>, 
+        y: &Array2<f64>
+    ) -> (Vec<Array2<f64>>, Vec<Array2<f64>>) {
         let mut nabla_b: Vec<Array2<f64>> = Vec::new();
         for b in self.biases.iter() {
             nabla_b.push(Array2::<f64>::zeros(b.dim()));
@@ -130,7 +135,13 @@ impl NaiveNeuralNetwork {
 
     }
 
-    pub fn update_mini_batch(&mut self, mini_batch: &[(Array2<f64>, Array2<f64>)], eta: f64, lmbda: f64, n: usize) {
+    pub fn update_mini_batch(
+        &mut self,
+        mini_batch: &[(Array2<f64>, Array2<f64>)], 
+        eta: f64, 
+        lmbda: f64, 
+        n: usize
+    ) -> () {
         let mut nabla_b: Vec<Array2<f64>> = Vec::new();
         for b in self.biases.iter() {
             nabla_b.push(Array2::<f64>::zeros(b.dim()));
@@ -184,7 +195,7 @@ impl NaiveNeuralNetwork {
         eta: f64,
         lmbda: f64,
         test_data: &[(Array2<f64>, Array2<f64>)],
-    ) {
+    ) -> () {
 
         let n = training_data.len();
         let n_test = test_data.len();
@@ -207,23 +218,3 @@ impl NaiveNeuralNetwork {
     }
 }
 
-pub fn sigmoid(arr: &Array2<f64>) -> Array2<f64> {
-    arr.mapv(|x| 1.0/(1.0 + (-x).exp()))
-}
-
-pub fn sigmoid_prime(arr: &Array2<f64>) -> Array2<f64> {
-    let s = sigmoid(arr);
-    &s * &s.mapv(|x| 1.0 - x)
-}
-
-pub fn quadratic_cost_derivative(output_activations: &Array2<f64>, y: &Array2<f64>) -> Array2<f64> {
-    output_activations - y
-}
-
-pub fn argmax(arr: &Array2<f64>) -> usize {
-    arr.iter()
-        .enumerate()
-        .max_by(|(_,a), (_,b)| a.partial_cmp(b).unwrap())
-        .unwrap()
-        .0
-}
