@@ -1,5 +1,5 @@
 use ndarray::{Array1, Array2};
-use rust_nn::Network;
+use rust_nn::naive::NaiveNeuralNetwork;
 use mnist::MnistBuilder;
 
 fn main() {
@@ -13,10 +13,10 @@ fn main() {
     let mut training_data = to_dataset(&mnist.trn_img, &mnist.trn_lbl, 50_000, true);
     let test_data = to_dataset(&mnist.tst_img, &mnist.tst_lbl, 10_000, true);
 
-    let arch = Array1::from_vec(vec![784u64, 30, 10]);
+    let arch = Array1::from_vec(vec![784u64, 30, 30, 10]);
     let mut net = Network::new(&arch).expect("Failed to build Network");
 
-    net.sgd(&mut training_data, 30, 10, 3.0, &test_data);
+    net.sgd(&mut training_data, 30, 10, 0.5, 5.0, &test_data);
 }
 
 fn to_dataset(
