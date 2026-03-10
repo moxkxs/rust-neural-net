@@ -10,7 +10,12 @@ pub enum CostFunction {
 
 pub enum Regularization {
     L1,
-    L2
+    L2,
+}
+
+pub enum WeightInitialization {
+    Random,
+    Scaled,
 }
 
 pub struct NaiveNeuralNetwork {
@@ -20,13 +25,15 @@ pub struct NaiveNeuralNetwork {
     pub weights: Vec<Array2<f64>>,
     pub cost_func: CostFunction,
     pub regularization: Option<Regularization>,
+    pub weight_initialization: WeightInitialization,
 }
 
 impl NaiveNeuralNetwork {
     pub fn new(
         nn_arch: &Array1<u64>, 
         cost_func: CostFunction, 
-        regularization: Option<Regularization>
+        regularization: Option<Regularization>,
+        weight_initialization: WeightInitialization
         ) -> Result<NaiveNeuralNetwork, &'static str> 
     {
         let n = nn_arch.len();
@@ -37,8 +44,18 @@ impl NaiveNeuralNetwork {
         }
 
         let mut weights: Vec<Array2<f64>> = Vec::new();
-        for (x, y) in nn_arch.iter().zip(nn_arch.iter().skip(1)) {
-            weights.push(Array::random((*y as usize, *x as usize), rand_distr::Normal::new(0.0, 1.0 / (*x as f64).sqrt()).expect("biases not initiating")));
+        
+        match weight_initialization {
+            WeightInitialization::Random => {
+                for (x, y) in nn_arch.iter().zip(nn_arch.iter().skip(1)) {
+                    weights.push(Array::random((*y as usize, *x as usize), rand_distr::Normal::new(0.0, 1.0).expect("weights not initiating")));
+                }
+            },
+            WeightInitialization::Scaled => {
+                for (x, y) in nn_arch.iter().zip(nn_arch.iter().skip(1)) {
+                    weights.push(Array::random((*y as usize, *x as usize), rand_distr::Normal::new(0.0, 1.0 / (*x as f64).sqrt()).expect("weights not initiating")));
+                }
+            },
         }
         
         Ok(
@@ -49,6 +66,7 @@ impl NaiveNeuralNetwork {
                 weights,
                 cost_func,
                 regularization,
+                weight_initialization,
             }
         )
     }
