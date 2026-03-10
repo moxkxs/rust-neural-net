@@ -41,12 +41,7 @@ impl NaiveNeuralNetwork {
         let biases: Vec<Array2<f64>> = nn_arch
             .iter()
             .skip(1)
-            .map(|l| {
-                Array::random(
-                    (*l as usize, 1),
-                    rand_distr::Normal::new(0.0, 1.0).expect("biases not initiating"),
-                )
-            })
+            .map(|l| Array::random((*l as usize, 1), rand_distr::Normal::new(0.0, 1.0).unwrap()))
             .collect();
 
         let weights: Vec<Array2<f64>> = match weight_initialization {
@@ -56,7 +51,7 @@ impl NaiveNeuralNetwork {
                 .map(|(x, y)| {
                     Array::random(
                         (*y as usize, *x as usize),
-                        rand_distr::Normal::new(0.0, 1.0).expect("weights not initiating"),
+                        rand_distr::Normal::new(0.0, 1.0).unwrap(),
                     )
                 })
                 .collect(),
@@ -66,8 +61,7 @@ impl NaiveNeuralNetwork {
                 .map(|(x, y)| {
                     Array::random(
                         (*y as usize, *x as usize),
-                        rand_distr::Normal::new(0.0, 1.0 / (*x as f64).sqrt())
-                            .expect("weights not initiating"),
+                        rand_distr::Normal::new(0.0, 1.0 / (*x as f64).sqrt()).unwrap(),
                     )
                 })
                 .collect(),
@@ -85,11 +79,12 @@ impl NaiveNeuralNetwork {
     }
 
     pub fn feedforward(&self, a: &Array2<f64>) -> Array2<f64> {
-        let mut activation = a.clone();
+        let mut activation = sigmoid(&(self.weights[0].dot(a) + &self.biases[0]));
 
         self.biases
             .iter()
-            .zip(self.weights.iter())
+            .skip(1)
+            .zip(self.weights.iter().skip(1))
             .for_each(|(b, w)| {
                 let z = w.dot(&activation) + b;
                 activation = sigmoid(&z)
@@ -114,20 +109,14 @@ impl NaiveNeuralNetwork {
             .map(|w| Array2::<f64>::zeros(w.dim()))
             .collect();
 
-        let mut activation = x.clone();
         let mut activations: Vec<Array2<f64>> = vec![x.clone()];
-
         let mut zs: Vec<Array2<f64>> = Vec::new();
 
-        self.biases
-            .iter()
-            .zip(self.weights.iter())
-            .for_each(|(b, w)| {
-                let z = w.dot(&activation) + b;
-                activation = sigmoid(&z);
-                zs.push(z);
-                activations.push(activation.clone());
-            });
+        for (b, w) in self.biases.iter().zip(self.weights.iter()) {
+            let z = w.dot(activations.last().unwrap()) + b;
+            activations.push(sigmoid(&z));
+            zs.push(z);
+        }
 
         let mut delta = match self.cost_func {
             CostFunction::Quadratic => {
@@ -140,8 +129,8 @@ impl NaiveNeuralNetwork {
         let nb_len = nabla_b.len();
         let nw_len = nabla_w.len();
 
-        nabla_b[nb_len - 1] = delta.clone();
         nabla_w[nw_len - 1] = delta.dot(&activations[activations.len() - 2].t());
+        nabla_b[nb_len - 1] = delta.clone();
 
         for l in 2..self.num_layers {
             let z = &zs[zs.len() - l];
@@ -162,7 +151,7 @@ impl NaiveNeuralNetwork {
         eta: f64,
         lmbda: f64,
         n: usize,
-    ){
+    ) {
         let mut nabla_b: Vec<Array2<f64>> = self
             .biases
             .iter()
@@ -216,7 +205,7 @@ impl NaiveNeuralNetwork {
         eta: f64,
         lmbda: f64,
         test_data: &[(Array2<f64>, Array2<f64>)],
-    ){
+    ) {
         let n = training_data.len();
         let n_test = test_data.len();
 
