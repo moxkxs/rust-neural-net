@@ -8,16 +8,27 @@ pub enum CostFunction {
     CrossEntropy,
 }
 
+pub enum Regularization {
+    L1,
+    L2
+}
+
 pub struct NaiveNeuralNetwork {
     pub architecture: Array1<u64>,
     pub num_layers: usize,
     pub biases: Vec<Array2<f64>>,
     pub weights: Vec<Array2<f64>>,
     pub cost_func: CostFunction,
+    pub regularization: Option<Regularization>,
 }
 
 impl NaiveNeuralNetwork {
-    pub fn new(nn_arch: &Array1<u64>, cost_func: CostFunction) -> Result<NaiveNeuralNetwork, &'static str> {
+    pub fn new(
+        nn_arch: &Array1<u64>, 
+        cost_func: CostFunction, 
+        regularization: Option<Regularization>
+        ) -> Result<NaiveNeuralNetwork, &'static str> 
+    {
         let n = nn_arch.len();
 
         let mut biases: Vec<Array2<f64>> = Vec::new();
@@ -37,6 +48,7 @@ impl NaiveNeuralNetwork {
                 biases,
                 weights,
                 cost_func,
+                regularization,
             }
         )
     }
@@ -125,8 +137,18 @@ impl NaiveNeuralNetwork {
 
         for (w, nw) in self.weights.iter_mut().zip(nabla_w.iter()) {
             let scale = eta / mini_batch.len() as f64;
-            let weight_decay = 1.0 - eta*lmbda/n as f64;
-            *w = weight_decay*(&*w) - &(nw*scale);
+            match self.regularization {
+                Some(Regularization::L1) => {
+                    *w = &*w - &(w.mapv(|x| x.signum()) * (eta * lmbda / n as f64)) - &(nw * scale);
+                },
+                Some(Regularization::L2) => {
+                    let weight_decay = 1.0 - eta*lmbda/n as f64;
+                    *w = weight_decay*(&*w) - &(nw*scale);
+                },
+                None => {
+                    *w = &*w - &(nw*scale);
+                },
+            }
         }
 
         for (b, nb) in self.biases.iter_mut().zip(nabla_b.iter()) {
